@@ -60,9 +60,20 @@ type DashScopeImageChoice struct {
 }
 
 type DashScopeVideoRequest struct {
-	Model      string         `json:"model"`
-	Input      map[string]any `json:"input"`
-	Parameters map[string]any `json:"parameters,omitempty"`
+	Model      string              `json:"model"`
+	Input      DashScopeVideoInput `json:"input"`
+	Parameters map[string]any      `json:"parameters,omitempty"`
+}
+
+type DashScopeVideoInput struct {
+	Prompt string                `json:"prompt,omitempty"`
+	Media  []DashScopeVideoMedia `json:"media,omitempty"`
+}
+
+type DashScopeVideoMedia struct {
+	Type           string `json:"type,omitempty"`
+	URL            string `json:"url,omitempty"`
+	ReferenceVoice string `json:"reference_voice,omitempty"`
 }
 
 type DashScopeTaskCreateResponse struct {

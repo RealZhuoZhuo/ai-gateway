@@ -20,22 +20,23 @@ func (h *Handler) GenerateImage(c *gin.Context) {
 	}
 
 	out, err := h.gateway.GenerateImage(c.Request.Context(), RequestIDFromContext(c), service.ImageGenerationRequest{
-		Model:           in.Model,
-		Prompt:          in.Prompt,
-		NegativePrompt:  in.NegativePrompt,
-		Size:            in.Size,
-		Resolution:      in.Resolution,
-		AspectRatio:     in.AspectRatio,
-		N:               in.N,
-		ReferenceImages: serviceReferenceImages(in.ReferenceImages),
-		Image:           in.Image,
-		ImageReference:  in.ImageReference,
-		ImageFidelity:   in.ImageFidelity,
-		HumanFidelity:   in.HumanFidelity,
-		CallbackURL:     in.CallbackURL,
-		ExternalTaskID:  in.ExternalTaskID,
-		Input:           in.Input,
-		Parameters:      in.Parameters,
+		Model:                     in.Model,
+		Prompt:                    in.Prompt,
+		NegativePrompt:            in.NegativePrompt,
+		Size:                      in.Size,
+		Resolution:                in.Resolution,
+		AspectRatio:               in.AspectRatio,
+		N:                         in.N,
+		ReferenceImages:           serviceReferenceImages(in.ReferenceImages),
+		Image:                     in.Image.First(),
+		Images:                    in.Image.Values(),
+		SequentialImageGeneration: in.SequentialImageGeneration,
+		ResponseFormat:            in.ResponseFormat,
+		Stream:                    in.Stream,
+		Watermark:                 in.Watermark,
+		Async:                     in.Async,
+		Input:                     in.Input,
+		Parameters:                in.Parameters,
 	})
 	if err != nil {
 		writeServiceError(c, err)
@@ -78,29 +79,21 @@ func (h *Handler) CreateVideoTask(c *gin.Context) {
 	}
 
 	out, err := h.gateway.CreateVideoTask(c.Request.Context(), RequestIDFromContext(c), service.CreateVideoTaskRequest{
-		Model:           in.Model,
-		Prompt:          in.Prompt,
-		NegativePrompt:  in.NegativePrompt,
-		FirstFrameURL:   in.FirstFrameURL,
-		Image:           in.Image,
-		ImageTail:       in.ImageTail,
-		Resolution:      in.Resolution,
-		Ratio:           in.Ratio,
-		AspectRatio:     in.AspectRatio,
-		Duration:        in.Duration,
-		Seed:            in.Seed,
-		GenerateAudio:   in.GenerateAudio,
-		ReturnLastFrame: in.ReturnLastFrame,
-		Mode:            in.Mode,
-		Sound:           in.Sound,
-		CFGScale:        in.CFGScale,
-		StaticMask:      in.StaticMask,
-		DynamicMasks:    in.DynamicMasks,
-		CameraControl:   in.CameraControl,
-		CallbackURL:     in.CallbackURL,
-		ExternalTaskID:  in.ExternalTaskID,
-		Input:           in.Input,
-		Parameters:      in.Parameters,
+		Model:          in.Model,
+		Prompt:         in.Prompt,
+		Content:        serviceVideoContent(in.Content),
+		Media:          serviceVideoMedia(in.Media),
+		NegativePrompt: in.NegativePrompt,
+		FirstFrameURL:  in.FirstFrameURL,
+		Image:          in.Image,
+		ImageTail:      in.ImageTail,
+		Resolution:     in.Resolution,
+		Ratio:          in.Ratio,
+		AspectRatio:    in.AspectRatio,
+		Duration:       in.Duration,
+		Seed:           in.Seed,
+		Input:          in.Input,
+		Parameters:     in.Parameters,
 	})
 	if err != nil {
 		writeServiceError(c, err)
@@ -143,6 +136,35 @@ func serviceReferenceImages(images []dto.ReferenceImage) []service.ReferenceImag
 	out := make([]service.ReferenceImage, 0, len(images))
 	for _, image := range images {
 		out = append(out, service.ReferenceImage{URL: image.URL})
+	}
+	return out
+}
+
+func serviceVideoContent(items []dto.VideoContent) []service.VideoContent {
+	out := make([]service.VideoContent, 0, len(items))
+	for _, item := range items {
+		var imageURL *service.MediaURL
+		if item.ImageURL != nil {
+			imageURL = &service.MediaURL{URL: item.ImageURL.URL}
+		}
+		out = append(out, service.VideoContent{
+			Type:     item.Type,
+			Text:     item.Text,
+			ImageURL: imageURL,
+			Role:     item.Role,
+		})
+	}
+	return out
+}
+
+func serviceVideoMedia(items []dto.VideoMedia) []service.VideoMedia {
+	out := make([]service.VideoMedia, 0, len(items))
+	for _, item := range items {
+		out = append(out, service.VideoMedia{
+			Type:           item.Type,
+			URL:            item.URL,
+			ReferenceVoice: item.ReferenceVoice,
+		})
 	}
 	return out
 }

@@ -1,29 +1,38 @@
 package dto
 
 type CreateVideoTaskRequest struct {
-	Model           string         `json:"model"`
-	Prompt          string         `json:"prompt"`
-	NegativePrompt  string         `json:"negative_prompt"`
-	FirstFrameURL   string         `json:"first_frame_url"`
-	Image           string         `json:"image"`
-	ImageTail       string         `json:"image_tail"`
-	Resolution      string         `json:"resolution"`
-	Ratio           string         `json:"ratio"`
-	AspectRatio     string         `json:"aspect_ratio"`
-	Duration        *int           `json:"duration"`
-	Seed            *int64         `json:"seed"`
-	GenerateAudio   *bool          `json:"generate_audio"`
-	ReturnLastFrame *bool          `json:"return_last_frame"`
-	Mode            string         `json:"mode"`
-	Sound           string         `json:"sound"`
-	CFGScale        *float64       `json:"cfg_scale"`
-	StaticMask      any            `json:"static_mask"`
-	DynamicMasks    any            `json:"dynamic_masks"`
-	CameraControl   map[string]any `json:"camera_control"`
-	CallbackURL     string         `json:"callback_url"`
-	ExternalTaskID  string         `json:"external_task_id"`
-	Input           map[string]any `json:"input"`
-	Parameters      map[string]any `json:"parameters"`
+	Model          string         `json:"model"`
+	Prompt         string         `json:"prompt"`
+	Content        []VideoContent `json:"content"`
+	Media          []VideoMedia   `json:"media"`
+	NegativePrompt string         `json:"negative_prompt"`
+	FirstFrameURL  string         `json:"first_frame_url"`
+	Image          string         `json:"image"`
+	ImageTail      string         `json:"image_tail"`
+	Resolution     string         `json:"resolution"`
+	Ratio          string         `json:"ratio"`
+	AspectRatio    string         `json:"aspect_ratio"`
+	Duration       *int           `json:"duration"`
+	Seed           *int64         `json:"seed"`
+	Input          map[string]any `json:"input"`
+	Parameters     map[string]any `json:"parameters"`
+}
+
+type VideoContent struct {
+	Type     string    `json:"type"`
+	Text     string    `json:"text,omitempty"`
+	ImageURL *MediaURL `json:"image_url,omitempty"`
+	Role     string    `json:"role,omitempty"`
+}
+
+type MediaURL struct {
+	URL string `json:"url"`
+}
+
+type VideoMedia struct {
+	Type           string `json:"type,omitempty"`
+	URL            string `json:"url,omitempty"`
+	ReferenceVoice string `json:"reference_voice,omitempty"`
 }
 
 type CreateVideoTaskResponse struct {

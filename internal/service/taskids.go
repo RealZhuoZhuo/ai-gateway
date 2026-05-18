@@ -3,13 +3,11 @@ package service
 import "strings"
 
 const (
-	taskPrefixArk             = "ark"
-	taskPrefixKlingImage      = "kling-img"
-	taskPrefixKlingTextVideo  = "kling-t2v"
-	taskPrefixKlingImageVideo = "kling-i2v"
-	taskPrefixDashImage       = "dashscope-img"
-	taskPrefixDashTextVideo   = "dashscope-t2v"
-	taskPrefixDashImageVideo  = "dashscope-i2v"
+	taskPrefixArk            = "ark"
+	taskPrefixDashImage      = "dashscope-img"
+	taskPrefixDashTextVideo  = "dashscope-t2v"
+	taskPrefixDashImageVideo = "dashscope-i2v"
+	taskPrefixDashRefVideo   = "dashscope-r2v"
 )
 
 func encodeTaskID(prefix, raw string) string {

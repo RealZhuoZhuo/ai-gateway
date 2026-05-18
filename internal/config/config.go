@@ -21,9 +21,6 @@ type Config struct {
 
 	ArkImageEndpoint string `mapstructure:"ark_image_endpoint"`
 	ArkImageAPIKey   string `mapstructure:"ark_image_api_key"`
-	KlingBaseURL     string `mapstructure:"kling_base_url"`
-	KlingAccessKey   string `mapstructure:"kling_access_key"`
-	KlingSecretKey   string `mapstructure:"kling_secret_key"`
 	DashScopeBaseURL string `mapstructure:"dashscope_base_url"`
 	DashScopeAPIKey  string `mapstructure:"dashscope_api_key"`
 
@@ -64,9 +61,6 @@ func Load() (Config, error) {
 		GatewayAPIKeys:     compactStrings(v.GetStringSlice("gateway_api_keys")),
 		ArkImageEndpoint:   v.GetString("ark_image_endpoint"),
 		ArkImageAPIKey:     v.GetString("ark_image_api_key"),
-		KlingBaseURL:       strings.TrimRight(v.GetString("kling_base_url"), "/"),
-		KlingAccessKey:     v.GetString("kling_access_key"),
-		KlingSecretKey:     v.GetString("kling_secret_key"),
 		DashScopeBaseURL:   strings.TrimRight(v.GetString("dashscope_base_url"), "/"),
 		DashScopeAPIKey:    v.GetString("dashscope_api_key"),
 		ArkVideoEndpoint:   v.GetString("ark_video_endpoint"),
@@ -175,7 +169,7 @@ func normalizeProvider(provider string) string {
 
 func validProvider(provider string) bool {
 	switch provider {
-	case "ark", "dashscope", "kling":
+	case "ark", "dashscope":
 		return true
 	default:
 		return false

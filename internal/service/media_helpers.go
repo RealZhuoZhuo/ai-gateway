@@ -2,9 +2,9 @@ package service
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/RealZhuoZhuo/ai-gateway/internal/common"
 	"github.com/RealZhuoZhuo/ai-gateway/internal/config"
@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	videoModeTextToVideo  = "text_to_video"
-	videoModeImageToVideo = "image_to_video"
+	videoModeTextToVideo      = "text_to_video"
+	videoModeImageToVideo     = "image_to_video"
+	videoModeReferenceToVideo = "reference_to_video"
 )
 
 type modelRouteGroup struct {
@@ -81,28 +82,211 @@ func imagePrompt(in ImageGenerationRequest) string {
 }
 
 func videoPrompt(in CreateVideoTaskRequest) string {
-	return firstString(in.Prompt, nestedString(in.Input, "prompt"), messagesText(in.Input))
+	return firstString(in.Prompt, videoContentText(in.Content), nestedString(in.Input, "prompt"), messagesText(in.Input))
 }
 
-func firstImage(in ImageGenerationRequest) string {
-	if in.Image != "" {
-		return in.Image
+func imageReferences(in ImageGenerationRequest) ([]string, error) {
+	images := make([]string, 0, len(in.Images)+len(in.ReferenceImages)+1)
+	add := func(value string) {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			images = append(images, trimmed)
+		}
 	}
-	if len(in.ReferenceImages) > 0 {
-		return in.ReferenceImages[0].URL
+	for _, image := range in.Images {
+		add(image)
 	}
-	return firstString(nestedString(in.Input, "image"), messagesImage(in.Input))
+	add(in.Image)
+	for _, item := range in.ReferenceImages {
+		if strings.TrimSpace(item.URL) == "" {
+			return nil, invalidRequest("reference_images.url is required")
+		}
+		add(item.URL)
+	}
+	for _, image := range messagesImages(in.Input) {
+		add(image)
+	}
+	return uniqueStrings(images), nil
+}
+
+func arkImageSize(in ImageGenerationRequest) string {
+	return firstString(in.Size, in.Resolution, nestedString(in.Parameters, "size"), nestedString(in.Parameters, "resolution"))
+}
+
+func arkImageReferences(in ImageGenerationRequest) (any, error) {
+	images, err := imageReferences(in)
+	if err != nil {
+		return nil, err
+	}
+	switch len(images) {
+	case 0:
+		return nil, nil
+	case 1:
+		return images[0], nil
+	default:
+		return images, nil
+	}
+}
+
+func arkSequentialImageGeneration(in ImageGenerationRequest) string {
+	return common.DefaultString(firstString(in.SequentialImageGeneration, nestedString(in.Parameters, "sequential_image_generation")), "disabled")
+}
+
+func arkResponseFormat(in ImageGenerationRequest) string {
+	return common.DefaultString(firstString(in.ResponseFormat, nestedString(in.Parameters, "response_format")), "url")
+}
+
+func arkImageStream(in ImageGenerationRequest) bool {
+	if in.Stream != nil {
+		return *in.Stream
+	}
+	if value, ok := nestedBool(in.Parameters, "stream"); ok {
+		return value
+	}
+	return false
+}
+
+func arkImageWatermark(in ImageGenerationRequest) bool {
+	if in.Watermark != nil {
+		return *in.Watermark
+	}
+	if value, ok := nestedBool(in.Parameters, "watermark"); ok {
+		return value
+	}
+	return true
+}
+
+func arkImageURLs(out providers.ArkImageResponse) []string {
+	urls := make([]string, 0, len(out.Data)+1)
+	if out.URL != "" {
+		urls = append(urls, out.URL)
+	}
+	for _, item := range out.Data {
+		if item.URL != "" {
+			urls = append(urls, item.URL)
+		}
+	}
+	return urls
+}
+
+func arkImageMetadata(out providers.ArkImageResponse) map[string]any {
+	metadata := map[string]any{}
+	if out.Created != 0 {
+		metadata["created"] = out.Created
+	}
+	if out.Usage != nil {
+		metadata["usage"] = out.Usage
+	}
+	sizes := make([]string, 0, len(out.Data))
+	for _, item := range out.Data {
+		if item.Size != "" {
+			sizes = append(sizes, item.Size)
+		}
+	}
+	if len(sizes) > 0 {
+		metadata["sizes"] = sizes
+	}
+	if len(metadata) == 0 {
+		return nil
+	}
+	return metadata
 }
 
 func firstFrame(in CreateVideoTaskRequest) string {
 	return firstString(in.FirstFrameURL, in.Image, nestedString(in.Input, "first_frame_url"), nestedString(in.Input, "image"), nestedString(in.Input, "img_url"))
 }
 
-func dashScopeVideoMode(in CreateVideoTaskRequest, image string) string {
+func dashScopeImageParameters(in ImageGenerationRequest, textOnly bool) map[string]any {
+	params := cloneMap(in.Parameters)
+	params = setIfMissing(params, "negative_prompt", in.NegativePrompt)
+	params = setIfMissing(params, "size", imageResolution(in))
+	params = setIfMissing(params, "n", imageN(in, 1))
+	params = setIfMissing(params, "aspect_ratio", imageAspectRatio(in))
+	params = setIfMissing(params, "watermark", imageWatermark(in, false))
+	if textOnly {
+		params = setIfMissing(params, "thinking_mode", dashScopeThinkingMode(in))
+	}
+	return params
+}
+
+func imageWatermark(in ImageGenerationRequest, fallback bool) bool {
+	if in.Watermark != nil {
+		return *in.Watermark
+	}
+	if value, ok := nestedBool(in.Parameters, "watermark"); ok {
+		return value
+	}
+	return fallback
+}
+
+func dashScopeThinkingMode(in ImageGenerationRequest) any {
+	if value, ok := nestedValue(in.Parameters, "thinking_mode"); ok {
+		return value
+	}
+	return true
+}
+
+func imageN(in ImageGenerationRequest, fallback int) int {
+	if in.N != nil {
+		return *in.N
+	}
+	return fallback
+}
+
+func arkVideoContent(in CreateVideoTaskRequest, prompt string) ([]providers.ArkVideoContent, error) {
+	if len(in.Content) > 0 {
+		return arkVideoContentFromInput(in.Content)
+	}
+
+	content := []providers.ArkVideoContent{{Type: "text", Text: prompt}}
+	if firstFrameURL := firstFrame(in); firstFrameURL != "" {
+		content = append(content, providers.ArkVideoContent{
+			Type:     "image_url",
+			ImageURL: &providers.ArkVideoImageURL{URL: firstFrameURL},
+		})
+	}
+	return content, nil
+}
+
+func arkVideoContentFromInput(items []VideoContent) ([]providers.ArkVideoContent, error) {
+	content := make([]providers.ArkVideoContent, 0, len(items))
+	for _, item := range items {
+		itemType := strings.TrimSpace(item.Type)
+		if itemType == "" {
+			return nil, invalidRequest("content.type is required")
+		}
+		out := providers.ArkVideoContent{
+			Type: itemType,
+			Text: strings.TrimSpace(item.Text),
+			Role: strings.TrimSpace(item.Role),
+		}
+		if item.ImageURL != nil {
+			if strings.TrimSpace(item.ImageURL.URL) == "" {
+				return nil, invalidRequest("content.image_url.url is required")
+			}
+			out.ImageURL = &providers.ArkVideoImageURL{URL: strings.TrimSpace(item.ImageURL.URL)}
+		}
+		content = append(content, out)
+	}
+	return content, nil
+}
+
+func videoContentText(items []VideoContent) string {
+	for _, item := range items {
+		if strings.TrimSpace(item.Type) == "text" && strings.TrimSpace(item.Text) != "" {
+			return strings.TrimSpace(item.Text)
+		}
+	}
+	return ""
+}
+
+func dashScopeVideoMode(in CreateVideoTaskRequest, media []providers.DashScopeVideoMedia) string {
 	if mode := videoModeForModel(in.Model); mode != "" {
 		return mode
 	}
-	if image != "" || in.ImageTail != "" {
+	if len(media) > 0 {
+		return videoModeReferenceToVideo
+	}
+	if firstFrame(in) != "" || in.ImageTail != "" {
 		return videoModeImageToVideo
 	}
 	return videoModeTextToVideo
@@ -110,6 +294,9 @@ func dashScopeVideoMode(in CreateVideoTaskRequest, image string) string {
 
 func videoModeForModel(model string) string {
 	model = strings.ToLower(model)
+	if strings.Contains(model, "r2v") || strings.Contains(model, "reference-to-video") || strings.Contains(model, "reference2video") {
+		return videoModeReferenceToVideo
+	}
 	if strings.Contains(model, "i2v") || strings.Contains(model, "image-to-video") || strings.Contains(model, "image2video") {
 		return videoModeImageToVideo
 	}
@@ -117,6 +304,116 @@ func videoModeForModel(model string) string {
 		return videoModeTextToVideo
 	}
 	return ""
+}
+
+func dashScopeVideoInput(in CreateVideoTaskRequest, prompt string) (providers.DashScopeVideoInput, error) {
+	media, err := dashScopeVideoMedia(in)
+	if err != nil {
+		return providers.DashScopeVideoInput{}, err
+	}
+	out := providers.DashScopeVideoInput{
+		Prompt: firstString(nestedString(in.Input, "prompt"), prompt),
+		Media:  media,
+	}
+	if out.Prompt == "" {
+		out.Prompt = prompt
+	}
+	return out, nil
+}
+
+func dashScopeVideoMedia(in CreateVideoTaskRequest) ([]providers.DashScopeVideoMedia, error) {
+	if rawMedia, ok := in.Input["media"].([]any); ok {
+		return dashScopeVideoMediaFromRaw(rawMedia)
+	}
+	if len(in.Media) > 0 {
+		return dashScopeVideoMediaFromRequest(in.Media)
+	}
+	image := firstFrame(in)
+	if image == "" {
+		return nil, nil
+	}
+	return []providers.DashScopeVideoMedia{{
+		Type: "reference_image",
+		URL:  image,
+	}}, nil
+}
+
+func dashScopeVideoMediaFromRaw(rawMedia []any) ([]providers.DashScopeVideoMedia, error) {
+	media := make([]providers.DashScopeVideoMedia, 0, len(rawMedia))
+	for _, rawItem := range rawMedia {
+		item, ok := rawItem.(map[string]any)
+		if !ok {
+			continue
+		}
+		out := providers.DashScopeVideoMedia{
+			Type:           nestedString(item, "type"),
+			URL:            nestedString(item, "url"),
+			ReferenceVoice: nestedString(item, "reference_voice"),
+		}
+		if out.Type == "" {
+			out.Type = dashScopeMediaType(out.URL)
+		}
+		if out.URL == "" {
+			return nil, invalidRequest("input.media.url is required")
+		}
+		media = append(media, out)
+	}
+	return media, nil
+}
+
+func dashScopeVideoMediaFromRequest(items []VideoMedia) ([]providers.DashScopeVideoMedia, error) {
+	media := make([]providers.DashScopeVideoMedia, 0, len(items))
+	for _, item := range items {
+		out := providers.DashScopeVideoMedia{
+			Type:           strings.TrimSpace(item.Type),
+			URL:            strings.TrimSpace(item.URL),
+			ReferenceVoice: strings.TrimSpace(item.ReferenceVoice),
+		}
+		if out.Type == "" {
+			out.Type = dashScopeMediaType(out.URL)
+		}
+		if out.URL == "" {
+			return nil, invalidRequest("media.url is required")
+		}
+		media = append(media, out)
+	}
+	return media, nil
+}
+
+func dashScopeMediaType(url string) string {
+	lower := strings.ToLower(strings.TrimSpace(url))
+	switch {
+	case strings.HasSuffix(lower, ".mp4"), strings.HasSuffix(lower, ".mov"), strings.HasSuffix(lower, ".webm"), strings.HasSuffix(lower, ".m4v"):
+		return "reference_video"
+	default:
+		return "reference_image"
+	}
+}
+
+func dashScopeVideoParameters(in CreateVideoTaskRequest) map[string]any {
+	params := cloneMap(in.Parameters)
+	params = setIfMissing(params, "negative_prompt", in.NegativePrompt)
+	params = setIfMissing(params, "duration", in.Duration)
+	params = setIfMissing(params, "resolution", in.Resolution)
+	params = setIfMissing(params, "ratio", videoAspectRatio(in))
+	params = setIfMissing(params, "seed", in.Seed)
+	params = setIfMissing(params, "prompt_extend", dashScopePromptExtend(in))
+	params = setIfMissing(params, "watermark", videoWatermark(in, false))
+	return params
+}
+
+func dashScopePromptExtend(in CreateVideoTaskRequest) any {
+	if value, ok := nestedValue(in.Parameters, "prompt_extend"); ok {
+		return value
+	}
+	return nil
+}
+
+func videoWatermark(in CreateVideoTaskRequest, fallback bool) bool {
+	if value, ok := nestedBool(in.Parameters, "watermark"); ok {
+		return value
+	}
+	return fallback
 }
 
 func videoAspectRatio(in CreateVideoTaskRequest) string {
@@ -129,17 +426,6 @@ func imageAspectRatio(in ImageGenerationRequest) string {
 
 func imageResolution(in ImageGenerationRequest) string {
 	return firstString(in.Resolution, in.Size, nestedString(in.Parameters, "resolution"), nestedString(in.Parameters, "size"))
-}
-
-func klingImageResolution(in ImageGenerationRequest) string {
-	return firstString(in.Resolution, in.Size, nestedString(in.Parameters, "resolution"), nestedString(in.Parameters, "size"))
-}
-
-func videoDurationString(in CreateVideoTaskRequest) string {
-	if in.Duration != nil {
-		return strconv.Itoa(*in.Duration)
-	}
-	return firstString(nestedString(in.Parameters, "duration"), nestedString(in.Input, "duration"))
 }
 
 func firstString(values ...string) string {
@@ -174,6 +460,45 @@ func nestedString(values map[string]any, keys ...string) string {
 	return ""
 }
 
+func nestedValue(values map[string]any, keys ...string) (any, bool) {
+	if len(values) == 0 {
+		return nil, false
+	}
+	for _, key := range keys {
+		value, ok := values[key]
+		if !ok {
+			continue
+		}
+		return value, true
+	}
+	return nil, false
+}
+
+func nestedBool(values map[string]any, keys ...string) (bool, bool) {
+	if len(values) == 0 {
+		return false, false
+	}
+	for _, key := range keys {
+		value, ok := values[key]
+		if !ok {
+			continue
+		}
+		switch typed := value.(type) {
+		case bool:
+			return typed, true
+		case string:
+			trimmed := strings.ToLower(strings.TrimSpace(typed))
+			if trimmed == "true" {
+				return true, true
+			}
+			if trimmed == "false" {
+				return false, true
+			}
+		}
+	}
+	return false, false
+}
+
 func messagesText(input map[string]any) string {
 	for _, item := range messageContents(input) {
 		if text := nestedString(item, "text"); text != "" {
@@ -183,13 +508,14 @@ func messagesText(input map[string]any) string {
 	return ""
 }
 
-func messagesImage(input map[string]any) string {
+func messagesImages(input map[string]any) []string {
+	var images []string
 	for _, item := range messageContents(input) {
 		if image := nestedString(item, "image", "image_url", "url"); image != "" {
-			return image
+			images = append(images, image)
 		}
 	}
-	return ""
+	return images
 }
 
 func messageContents(input map[string]any) []map[string]any {
@@ -217,7 +543,7 @@ func messageContents(input map[string]any) []map[string]any {
 	return out
 }
 
-func dashScopeMessages(input map[string]any, prompt, image string) []providers.DashScopeMessage {
+func dashScopeMessages(input map[string]any, prompt string, images []string) []providers.DashScopeMessage {
 	rawMessages, ok := input["messages"].([]any)
 	if ok {
 		messages := make([]providers.DashScopeMessage, 0, len(rawMessages))
@@ -237,10 +563,12 @@ func dashScopeMessages(input map[string]any, prompt, image string) []providers.D
 				if !ok {
 					continue
 				}
-				content = append(content, providers.DashScopeContent{
-					Text:  nestedString(item, "text"),
-					Image: nestedString(item, "image", "image_url", "url"),
-				})
+				if text := nestedString(item, "text"); text != "" {
+					content = append(content, providers.DashScopeContent{Text: text})
+				}
+				if image := nestedString(item, "image", "image_url", "url"); image != "" {
+					content = append(content, providers.DashScopeContent{Image: image})
+				}
 			}
 			if len(content) > 0 {
 				messages = append(messages, providers.DashScopeMessage{Role: role, Content: content})
@@ -252,10 +580,29 @@ func dashScopeMessages(input map[string]any, prompt, image string) []providers.D
 	}
 
 	content := []providers.DashScopeContent{{Text: prompt}}
-	if image != "" {
-		content = append(content, providers.DashScopeContent{Image: image})
+	for _, image := range images {
+		if strings.TrimSpace(image) != "" {
+			content = append(content, providers.DashScopeContent{Image: strings.TrimSpace(image)})
+		}
 	}
 	return []providers.DashScopeMessage{{Role: "user", Content: content}}
+}
+
+func uniqueStrings(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := map[string]struct{}{}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }
 
 func cloneMap(in map[string]any) map[string]any {
@@ -273,6 +620,10 @@ func setIfMissing(values map[string]any, key string, value any) map[string]any {
 	if value == nil {
 		return values
 	}
+	reflected := reflect.ValueOf(value)
+	if canBeNil(reflected.Kind()) && reflected.IsNil() {
+		return values
+	}
 	if s, ok := value.(string); ok && strings.TrimSpace(s) == "" {
 		return values
 	}
@@ -283,6 +634,15 @@ func setIfMissing(values map[string]any, key string, value any) map[string]any {
 		values[key] = value
 	}
 	return values
+}
+
+func canBeNil(kind reflect.Kind) bool {
+	switch kind {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return true
+	default:
+		return false
+	}
 }
 
 func normalizeDashScopeStatus(status string) string {
@@ -297,19 +657,6 @@ func normalizeDashScopeStatus(status string) string {
 		return "failed"
 	case "CANCELED", "CANCELLED":
 		return "cancelled"
-	default:
-		return normalizeTaskStatus(status)
-	}
-}
-
-func normalizeKlingStatus(status string) string {
-	switch strings.ToLower(strings.TrimSpace(status)) {
-	case "submitted":
-		return "queued"
-	case "processing":
-		return "running"
-	case "succeed":
-		return "succeeded"
 	default:
 		return normalizeTaskStatus(status)
 	}
@@ -373,40 +720,4 @@ func dashScopeTaskVideoURL(out providers.DashScopeTaskOutput) string {
 		}
 	}
 	return ""
-}
-
-func klingImageURLs(out providers.KlingTaskResponse) []string {
-	if out.Data.TaskResult == nil {
-		return nil
-	}
-	urls := make([]string, 0, len(out.Data.TaskResult.Images))
-	for _, image := range out.Data.TaskResult.Images {
-		if image.URL != "" {
-			urls = append(urls, image.URL)
-		}
-	}
-	return urls
-}
-
-func klingVideoURL(out providers.KlingTaskResponse) string {
-	if out.Data.TaskResult == nil {
-		return ""
-	}
-	for _, video := range out.Data.TaskResult.Videos {
-		if video.URL != "" {
-			return video.URL
-		}
-	}
-	return ""
-}
-
-func waitDuration(attempt int) time.Duration {
-	if attempt < 2 {
-		return 500 * time.Millisecond
-	}
-	return 1500 * time.Millisecond
-}
-
-func timeAfter(d time.Duration) <-chan time.Time {
-	return time.After(d)
 }

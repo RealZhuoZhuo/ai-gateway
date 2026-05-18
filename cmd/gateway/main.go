@@ -51,9 +51,8 @@ func main() {
 		SetTimeout(cfg.HTTPTimeout).
 		SetHeader("Accept", "application/json")
 	ark := providers.NewArkClient(restyClient, cfg.ArkImageEndpoint, cfg.ArkImageAPIKey, cfg.ArkVideoEndpoint, cfg.ArkVideoAPIKey)
-	kling := providers.NewKlingClient(restyClient, cfg.KlingBaseURL, cfg.KlingAccessKey, cfg.KlingSecretKey)
 	dashscope := providers.NewDashScopeClient(restyClient, cfg.DashScopeBaseURL, cfg.DashScopeAPIKey)
-	gateway := service.NewGateway(cfg, ark, kling, dashscope)
+	gateway := service.NewGateway(cfg, ark, dashscope)
 	handler := httpapi.NewHandler(gateway)
 	authenticator := service.NewAuthenticator(cfg.GatewayAPIKeys, pgRepo)
 

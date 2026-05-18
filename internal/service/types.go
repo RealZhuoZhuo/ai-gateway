@@ -1,22 +1,23 @@
 package service
 
 type ImageGenerationRequest struct {
-	Model           string
-	Prompt          string
-	NegativePrompt  string
-	Size            string
-	Resolution      string
-	AspectRatio     string
-	N               *int
-	ReferenceImages []ReferenceImage
-	Image           string
-	ImageReference  string
-	ImageFidelity   *float64
-	HumanFidelity   *float64
-	CallbackURL     string
-	ExternalTaskID  string
-	Input           map[string]any
-	Parameters      map[string]any
+	Model                     string
+	Prompt                    string
+	NegativePrompt            string
+	Size                      string
+	Resolution                string
+	AspectRatio               string
+	N                         *int
+	ReferenceImages           []ReferenceImage
+	Image                     string
+	Images                    []string
+	SequentialImageGeneration string
+	ResponseFormat            string
+	Stream                    *bool
+	Watermark                 *bool
+	Async                     *bool
+	Input                     map[string]any
+	Parameters                map[string]any
 }
 
 type ReferenceImage struct {
@@ -46,29 +47,38 @@ type GetImageTaskResponse struct {
 }
 
 type CreateVideoTaskRequest struct {
-	Model           string
-	Prompt          string
-	NegativePrompt  string
-	FirstFrameURL   string
-	Image           string
-	ImageTail       string
-	Resolution      string
-	Ratio           string
-	AspectRatio     string
-	Duration        *int
-	Seed            *int64
-	GenerateAudio   *bool
-	ReturnLastFrame *bool
-	Mode            string
-	Sound           string
-	CFGScale        *float64
-	StaticMask      any
-	DynamicMasks    any
-	CameraControl   map[string]any
-	CallbackURL     string
-	ExternalTaskID  string
-	Input           map[string]any
-	Parameters      map[string]any
+	Model          string
+	Prompt         string
+	Content        []VideoContent
+	Media          []VideoMedia
+	NegativePrompt string
+	FirstFrameURL  string
+	Image          string
+	ImageTail      string
+	Resolution     string
+	Ratio          string
+	AspectRatio    string
+	Duration       *int
+	Seed           *int64
+	Input          map[string]any
+	Parameters     map[string]any
+}
+
+type VideoContent struct {
+	Type     string
+	Text     string
+	ImageURL *MediaURL
+	Role     string
+}
+
+type MediaURL struct {
+	URL string
+}
+
+type VideoMedia struct {
+	Type           string
+	URL            string
+	ReferenceVoice string
 }
 
 type CreateVideoTaskResponse struct {

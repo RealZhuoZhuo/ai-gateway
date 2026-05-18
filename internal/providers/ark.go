@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -27,22 +28,27 @@ func NewArkClient(client *resty.Client, imageEndpoint, imageAPIKey, videoEndpoin
 }
 
 type ArkImageRequest struct {
-	Model                     string   `json:"model"`
-	Prompt                    string   `json:"prompt"`
-	SequentialImageGeneration string   `json:"sequential_image_generation"`
-	ResponseFormat            string   `json:"response_format"`
-	Size                      string   `json:"size"`
-	Stream                    bool     `json:"stream"`
-	Watermark                 bool     `json:"watermark"`
-	Image                     []string `json:"image,omitempty"`
+	Model                     string `json:"model"`
+	Prompt                    string `json:"prompt"`
+	SequentialImageGeneration string `json:"sequential_image_generation"`
+	ResponseFormat            string `json:"response_format"`
+	Size                      string `json:"size"`
+	Stream                    bool   `json:"stream"`
+	Watermark                 bool   `json:"watermark"`
+	Image                     any    `json:"image,omitempty"`
 }
 
 type ArkImageResponse struct {
-	Model string `json:"model,omitempty"`
-	Data  []struct {
-		URL string `json:"url"`
-	} `json:"data"`
-	URL string `json:"url,omitempty"`
+	Model   string         `json:"model,omitempty"`
+	Created int64          `json:"created,omitempty"`
+	Data    []ArkImageData `json:"data"`
+	URL     string         `json:"url,omitempty"`
+	Usage   map[string]any `json:"usage,omitempty"`
+}
+
+type ArkImageData struct {
+	URL  string `json:"url"`
+	Size string `json:"size,omitempty"`
 }
 
 func (c *ArkClient) GenerateImage(ctx context.Context, requestID string, req ArkImageRequest) (ArkImageResponse, error) {
@@ -54,16 +60,8 @@ func (c *ArkClient) GenerateImage(ctx context.Context, requestID string, req Ark
 }
 
 type ArkVideoCreateRequest struct {
-	Model           string            `json:"model"`
-	Content         []ArkVideoContent `json:"content"`
-	ServiceTier     string            `json:"service_tier"`
-	GenerateAudio   bool              `json:"generate_audio"`
-	ReturnLastFrame bool              `json:"return_last_frame"`
-	Watermark       bool              `json:"watermark"`
-	Resolution      string            `json:"resolution,omitempty"`
-	Ratio           string            `json:"ratio,omitempty"`
-	Duration        *int              `json:"duration,omitempty"`
-	Seed            *int64            `json:"seed,omitempty"`
+	Model   string            `json:"model"`
+	Content []ArkVideoContent `json:"content"`
 }
 
 type ArkVideoContent struct {
@@ -126,7 +124,7 @@ func (c *ArkClient) GetVideoTask(ctx context.Context, requestID, taskID string) 
 	if c.videoAPIKey == "" {
 		return out, providerNotConfigured("ark video api key is not configured")
 	}
-	endpoint := c.videoEndpoint + "/" + taskID
+	endpoint := strings.TrimRight(c.videoEndpoint, "/") + "/" + taskID
 	return out, c.doJSON(ctx, http.MethodGet, endpoint, c.videoAPIKey, requestID, nil, &out)
 }
 
