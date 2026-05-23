@@ -18,7 +18,8 @@ type Postgres struct {
 	db *gorm.DB
 }
 
-func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
+func NewPostgres(ctx context.Context,
+	databaseURL string) (*Postgres, error) {
 	if databaseURL == "" {
 		return nil, ErrNotConfigured
 	}

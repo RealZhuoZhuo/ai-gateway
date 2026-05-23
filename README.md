@@ -38,7 +38,7 @@ Edit `config.yaml` or override values with environment variables.
 
 ```yaml
 addr: ":8080"
-database_url: "postgres://user:password@localhost:5432/ai_gateway"
+database_url: "postgres://user:password@localhost:5433/ai_gateway"
 gateway_api_key: "local-dev-key"
 gateway_api_keys: []
 dashscope_base_url: "https://dashscope.aliyuncs.com/api/v1"
