@@ -30,6 +30,8 @@ func (h *Handler) GenerateImage(c *gin.Context) {
 		ReferenceImages:           serviceReferenceImages(in.ReferenceImages),
 		Image:                     in.Image.First(),
 		Images:                    in.Image.Values(),
+		Quality:                   in.Quality,
+		Format:                    in.Format,
 		SequentialImageGeneration: in.SequentialImageGeneration,
 		ResponseFormat:            in.ResponseFormat,
 		Stream:                    in.Stream,

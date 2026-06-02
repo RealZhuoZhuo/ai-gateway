@@ -23,6 +23,8 @@ type Config struct {
 	ArkImageAPIKey   string `mapstructure:"ark_image_api_key"`
 	DashScopeBaseURL string `mapstructure:"dashscope_base_url"`
 	DashScopeAPIKey  string `mapstructure:"dashscope_api_key"`
+	YunwuBaseURL     string `mapstructure:"yunwu_base_url"`
+	YunwuAPIKey      string `mapstructure:"yunwu_api_key"`
 
 	ArkVideoEndpoint string `mapstructure:"ark_video_endpoint"`
 	ArkVideoAPIKey   string `mapstructure:"ark_video_api_key"`
@@ -47,6 +49,7 @@ func Load() (Config, error) {
 	if configFile := strings.TrimSpace(v.GetString("config_file")); configFile != "" {
 		v.SetConfigFile(configFile)
 	}
+	v.SetDefault("yunwu_base_url", "https://yunwu.ai")
 
 	if err := v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
@@ -63,6 +66,8 @@ func Load() (Config, error) {
 		ArkImageAPIKey:     v.GetString("ark_image_api_key"),
 		DashScopeBaseURL:   strings.TrimRight(v.GetString("dashscope_base_url"), "/"),
 		DashScopeAPIKey:    v.GetString("dashscope_api_key"),
+		YunwuBaseURL:       strings.TrimRight(v.GetString("yunwu_base_url"), "/"),
+		YunwuAPIKey:        v.GetString("yunwu_api_key"),
 		ArkVideoEndpoint:   v.GetString("ark_video_endpoint"),
 		ArkVideoAPIKey:     v.GetString("ark_video_api_key"),
 		LogLevel:           v.GetString("log_level"),
@@ -151,7 +156,7 @@ func normalizeModelProviders(key string, providers []ModelProvider) ([]ModelProv
 		if item.Provider == "" {
 			return nil, fmt.Errorf("%s[%d].provider is required", key, index)
 		}
-		if !validProvider(item.Provider) {
+		if !validProvider(key, item.Provider) {
 			return nil, fmt.Errorf("%s[%d].provider %q is invalid", key, index, item.Provider)
 		}
 		if _, ok := seen[item.Model]; ok {
@@ -167,11 +172,28 @@ func normalizeProvider(provider string) string {
 	return strings.ToLower(strings.TrimSpace(provider))
 }
 
-func validProvider(provider string) bool {
-	switch provider {
-	case "ark", "dashscope":
-		return true
+func validProvider(key, provider string) bool {
+	switch key {
+	case "image_model_providers":
+		switch provider {
+		case "ark", "dashscope", "yunwu":
+			return true
+		default:
+			return false
+		}
+	case "video_model_providers":
+		switch provider {
+		case "ark", "dashscope":
+			return true
+		default:
+			return false
+		}
 	default:
-		return false
+		switch provider {
+		case "ark", "dashscope":
+			return true
+		default:
+			return false
+		}
 	}
 }

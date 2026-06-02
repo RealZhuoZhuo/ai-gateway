@@ -14,6 +14,7 @@ type Gateway struct {
 	cfg       ConfigView
 	ark       *providers.ArkClient
 	dashscope *providers.DashScopeClient
+	yunwu     *providers.YunwuClient
 }
 
 type ConfigView struct {
@@ -21,7 +22,7 @@ type ConfigView struct {
 	VideoModelProviders modelRouteGroup
 }
 
-func NewGateway(cfg config.Config, ark *providers.ArkClient, dashscope *providers.DashScopeClient) *Gateway {
+func NewGateway(cfg config.Config, ark *providers.ArkClient, dashscope *providers.DashScopeClient, yunwu *providers.YunwuClient) *Gateway {
 	return &Gateway{
 		cfg: ConfigView{
 			ImageModelProviders: newModelRouteGroup(cfg.ImageModelProviders),
@@ -29,6 +30,7 @@ func NewGateway(cfg config.Config, ark *providers.ArkClient, dashscope *provider
 		},
 		ark:       ark,
 		dashscope: dashscope,
+		yunwu:     yunwu,
 	}
 }
 
@@ -46,6 +48,8 @@ func (g *Gateway) GenerateImage(ctx context.Context, requestID string, in ImageG
 		return g.generateDashScopeImage(ctx, requestID, in, prompt)
 	case "ark":
 		return g.generateArkImage(ctx, requestID, in, prompt)
+	case "yunwu":
+		return g.generateYunwuImage(ctx, requestID, in, prompt)
 	default:
 		return ImageGenerationResponse{}, invalidRequest("model is not configured")
 	}
@@ -137,6 +141,71 @@ func (g *Gateway) generateDashScopeImage(ctx context.Context, requestID string, 
 		Size:     imageResolution(in),
 		Status:   "succeeded",
 		Metadata: map[string]any{"request_id": out.RequestID, "usage": out.Usage},
+	}, nil
+}
+
+func (g *Gateway) generateYunwuImage(ctx context.Context, requestID string, in ImageGenerationRequest, prompt string) (ImageGenerationResponse, error) {
+	if in.Async != nil && *in.Async {
+		return ImageGenerationResponse{}, invalidRequest("yunwu image generation does not support async")
+	}
+
+	if yunwuGeminiModel(in.Model) {
+		parts, err := yunwuGeminiParts(in, prompt)
+		if err != nil {
+			return ImageGenerationResponse{}, err
+		}
+		out, err := g.yunwu.GenerateGeminiImage(ctx, requestID, in.Model, providers.YunwuGeminiRequest{
+			Contents: []providers.YunwuGeminiContent{{
+				Role:  "user",
+				Parts: parts,
+			}},
+			GenerationConfig: providers.YunwuGeminiGenerationConfig{
+				ResponseModalities: []string{"IMAGE", "TEXT"},
+			},
+		})
+		if err != nil {
+			return ImageGenerationResponse{}, providerError(err)
+		}
+
+		urls := yunwuGeminiImageURLs(out)
+		if len(urls) == 0 {
+			return ImageGenerationResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "yunwu image response did not include image")
+		}
+		return ImageGenerationResponse{
+			URL:      urls[0],
+			URLs:     urls,
+			Provider: "yunwu",
+			Model:    in.Model,
+			Size:     imageResolution(in),
+			Status:   "succeeded",
+			Metadata: yunwuGeminiMetadata(out),
+		}, nil
+	}
+
+	out, err := g.yunwu.GenerateImage(ctx, requestID, providers.YunwuImageRequest{
+		Model:   in.Model,
+		Prompt:  prompt,
+		N:       in.N,
+		Size:    imageResolution(in),
+		Quality: imageQuality(in),
+		Format:  imageFormat(in),
+	})
+	if err != nil {
+		return ImageGenerationResponse{}, providerError(err)
+	}
+
+	urls := yunwuImageURLs(out, imageFormat(in))
+	if len(urls) == 0 {
+		return ImageGenerationResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "yunwu image response did not include image")
+	}
+	return ImageGenerationResponse{
+		URL:      urls[0],
+		URLs:     urls,
+		Provider: "yunwu",
+		Model:    in.Model,
+		Size:     imageResolution(in),
+		Status:   "succeeded",
+		Metadata: yunwuImageMetadata(out),
 	}, nil
 }
 

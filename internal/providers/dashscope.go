@@ -15,8 +15,6 @@ type DashScopeClient struct {
 	apiKey  string
 }
 
-const dashScopeDataInspectionHeaderValue = `{"input":"disable", "output":"disable"}`
-
 func NewDashScopeClient(client *resty.Client, baseURL, apiKey string) *DashScopeClient {
 	return &DashScopeClient{
 		client:  client,
@@ -114,7 +112,7 @@ func (c *DashScopeClient) GenerateImage(ctx context.Context, requestID string, r
 	if err := c.ensureConfigured(); err != nil {
 		return out, err
 	}
-	return out, c.doJSON(ctx, http.MethodPost, "/services/aigc/multimodal-generation/generation", requestID, false, true, req, &out)
+	return out, c.doJSON(ctx, http.MethodPost, "/services/aigc/multimodal-generation/generation", requestID, false, req, &out)
 }
 
 func (c *DashScopeClient) CreateImageTask(ctx context.Context, requestID string, req DashScopeImageRequest) (DashScopeTaskCreateResponse, error) {
@@ -122,7 +120,7 @@ func (c *DashScopeClient) CreateImageTask(ctx context.Context, requestID string,
 	if err := c.ensureConfigured(); err != nil {
 		return out, err
 	}
-	return out, c.doJSON(ctx, http.MethodPost, "/services/aigc/image-generation/generation", requestID, true, true, req, &out)
+	return out, c.doJSON(ctx, http.MethodPost, "/services/aigc/image-generation/generation", requestID, true, req, &out)
 }
 
 func (c *DashScopeClient) CreateVideoTask(ctx context.Context, requestID string, req DashScopeVideoRequest) (DashScopeTaskCreateResponse, error) {
@@ -130,7 +128,7 @@ func (c *DashScopeClient) CreateVideoTask(ctx context.Context, requestID string,
 	if err := c.ensureConfigured(); err != nil {
 		return out, err
 	}
-	return out, c.doJSON(ctx, http.MethodPost, "/services/aigc/video-generation/video-synthesis", requestID, true, true, req, &out)
+	return out, c.doJSON(ctx, http.MethodPost, "/services/aigc/video-generation/video-synthesis", requestID, true, req, &out)
 }
 
 func (c *DashScopeClient) GetTask(ctx context.Context, requestID, taskID string) (DashScopeTaskResponse, error) {
@@ -138,7 +136,7 @@ func (c *DashScopeClient) GetTask(ctx context.Context, requestID, taskID string)
 	if err := c.ensureConfigured(); err != nil {
 		return out, err
 	}
-	return out, c.doJSON(ctx, http.MethodGet, "/tasks/"+taskID, requestID, false, false, nil, &out)
+	return out, c.doJSON(ctx, http.MethodGet, "/tasks/"+taskID, requestID, false, nil, &out)
 }
 
 func (c *DashScopeClient) ensureConfigured() error {
@@ -148,7 +146,7 @@ func (c *DashScopeClient) ensureConfigured() error {
 	return nil
 }
 
-func (c *DashScopeClient) doJSON(ctx context.Context, method, path, requestID string, async bool, dataInspection bool, body any, out any) error {
+func (c *DashScopeClient) doJSON(ctx context.Context, method, path, requestID string, async bool, body any, out any) error {
 	req := c.client.R().
 		SetContext(ctx).
 		SetHeader("Authorization", "Bearer "+c.apiKey).
@@ -156,9 +154,6 @@ func (c *DashScopeClient) doJSON(ctx context.Context, method, path, requestID st
 		SetHeader("X-Request-Id", requestID)
 	if async {
 		req.SetHeader("X-DashScope-Async", "enable")
-	}
-	if dataInspection {
-		req.SetHeader("X-DashScope-DataInspection", dashScopeDataInspectionHeaderValue)
 	}
 	if body != nil {
 		req.SetBody(body)

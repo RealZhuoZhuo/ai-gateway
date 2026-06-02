@@ -428,6 +428,14 @@ func imageResolution(in ImageGenerationRequest) string {
 	return firstString(in.Resolution, in.Size, nestedString(in.Parameters, "resolution"), nestedString(in.Parameters, "size"))
 }
 
+func imageQuality(in ImageGenerationRequest) string {
+	return firstString(in.Quality, nestedString(in.Parameters, "quality"))
+}
+
+func imageFormat(in ImageGenerationRequest) string {
+	return firstString(in.Format, nestedString(in.Parameters, "format"))
+}
+
 func firstString(values ...string) string {
 	return common.FirstNonEmpty(values...)
 }
@@ -679,6 +687,165 @@ func dashScopeImageURLs(out providers.DashScopeImageResponse) []string {
 		}
 	}
 	return urls
+}
+
+func yunwuGeminiModel(model string) bool {
+	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(model)), "gemini-")
+}
+
+func yunwuGeminiParts(in ImageGenerationRequest, prompt string) ([]providers.YunwuGeminiPart, error) {
+	images, err := imageReferences(in)
+	if err != nil {
+		return nil, err
+	}
+	parts := []providers.YunwuGeminiPart{{Text: prompt}}
+	for _, image := range images {
+		parts = append(parts, yunwuGeminiImagePart(image))
+	}
+	return parts, nil
+}
+
+func yunwuGeminiImagePart(image string) providers.YunwuGeminiPart {
+	mimeType, data, ok := dataURIContent(image)
+	if ok {
+		return providers.YunwuGeminiPart{
+			InlineData: &providers.YunwuGeminiInlineData{
+				MimeType: common.DefaultString(mimeType, "image/png"),
+				Data:     data,
+			},
+		}
+	}
+	return providers.YunwuGeminiPart{
+		FileData: &providers.YunwuGeminiFileData{
+			MimeType: imageMimeType(image),
+			FileURI:  image,
+		},
+	}
+}
+
+func yunwuGeminiImageURLs(out providers.YunwuGeminiResponse) []string {
+	var urls []string
+	for _, candidate := range out.Candidates {
+		for _, part := range candidate.Content.Parts {
+			if inline := yunwuInlineData(part); inline != nil && strings.TrimSpace(inline.Data) != "" {
+				urls = append(urls, dataURI(yunwuInlineMimeType(*inline), inline.Data))
+			}
+		}
+	}
+	return urls
+}
+
+func yunwuImageURLs(out providers.YunwuImageResponse, format string) []string {
+	var urls []string
+	for _, item := range out.Data {
+		if item.URL != "" {
+			urls = append(urls, item.URL)
+			continue
+		}
+		if item.B64JSON != "" {
+			urls = append(urls, dataURI(common.FirstNonEmpty(item.MimeType, imageMimeType(format), "image/png"), item.B64JSON))
+		}
+	}
+	return urls
+}
+
+func yunwuGeminiMetadata(out providers.YunwuGeminiResponse) map[string]any {
+	metadata := map[string]any{}
+	if out.Usage != nil {
+		metadata["usage"] = out.Usage
+	}
+	texts := make([]string, 0)
+	finishReasons := make([]string, 0)
+	for _, candidate := range out.Candidates {
+		if candidate.FinishReason != "" {
+			finishReasons = append(finishReasons, candidate.FinishReason)
+		}
+		for _, part := range candidate.Content.Parts {
+			if text := strings.TrimSpace(part.Text); text != "" {
+				texts = append(texts, text)
+			}
+		}
+	}
+	if len(texts) > 0 {
+		metadata["texts"] = texts
+	}
+	if len(finishReasons) > 0 {
+		metadata["finish_reasons"] = finishReasons
+	}
+	if len(metadata) == 0 {
+		return nil
+	}
+	return metadata
+}
+
+func yunwuImageMetadata(out providers.YunwuImageResponse) map[string]any {
+	metadata := map[string]any{}
+	if out.Created != 0 {
+		metadata["created"] = out.Created
+	}
+	if out.Usage != nil {
+		metadata["usage"] = out.Usage
+	}
+	if len(metadata) == 0 {
+		return nil
+	}
+	return metadata
+}
+
+func yunwuInlineData(part providers.YunwuGeminiPart) *providers.YunwuGeminiInlineData {
+	if part.InlineData != nil {
+		return part.InlineData
+	}
+	return part.InlineDataSnake
+}
+
+func yunwuInlineMimeType(inline providers.YunwuGeminiInlineData) string {
+	return common.FirstNonEmpty(inline.MimeType, inline.MimeTypeSnake, "image/png")
+}
+
+func dataURI(mimeType, data string) string {
+	return "data:" + common.DefaultString(strings.TrimSpace(mimeType), "image/png") + ";base64," + strings.TrimSpace(data)
+}
+
+func dataURIContent(value string) (string, string, bool) {
+	trimmed := strings.TrimSpace(value)
+	if !strings.HasPrefix(strings.ToLower(trimmed), "data:") {
+		return "", "", false
+	}
+	comma := strings.Index(trimmed, ",")
+	if comma < 0 {
+		return "", "", false
+	}
+	header := trimmed[len("data:"):comma]
+	data := strings.TrimSpace(trimmed[comma+1:])
+	if data == "" {
+		return "", "", false
+	}
+	mimeType := header
+	if semicolon := strings.Index(mimeType, ";"); semicolon >= 0 {
+		mimeType = mimeType[:semicolon]
+	}
+	return strings.TrimSpace(mimeType), data, true
+}
+
+func imageMimeType(value string) string {
+	lower := strings.ToLower(strings.TrimSpace(value))
+	lower = strings.TrimPrefix(lower, ".")
+	switch {
+	case strings.HasPrefix(lower, "data:"):
+		if end := strings.Index(lower, ";"); end > len("data:") {
+			return lower[len("data:"):end]
+		}
+	case strings.Contains(lower, "jpeg"), strings.Contains(lower, "jpg"):
+		return "image/jpeg"
+	case strings.Contains(lower, "png"):
+		return "image/png"
+	case strings.Contains(lower, "webp"):
+		return "image/webp"
+	case strings.Contains(lower, "gif"):
+		return "image/gif"
+	}
+	return ""
 }
 
 func dashScopeTaskImageURLs(out providers.DashScopeTaskOutput) []string {

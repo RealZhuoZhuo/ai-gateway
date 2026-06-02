@@ -11,6 +11,8 @@ type ImageGenerationRequest struct {
 	ReferenceImages           []ReferenceImage
 	Image                     string
 	Images                    []string
+	Quality                   string
+	Format                    string
 	SequentialImageGeneration string
 	ResponseFormat            string
 	Stream                    *bool

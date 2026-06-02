@@ -52,7 +52,8 @@ func main() {
 		SetHeader("Accept", "application/json")
 	ark := providers.NewArkClient(restyClient, cfg.ArkImageEndpoint, cfg.ArkImageAPIKey, cfg.ArkVideoEndpoint, cfg.ArkVideoAPIKey)
 	dashscope := providers.NewDashScopeClient(restyClient, cfg.DashScopeBaseURL, cfg.DashScopeAPIKey)
-	gateway := service.NewGateway(cfg, ark, dashscope)
+	yunwu := providers.NewYunwuClient(restyClient, cfg.YunwuBaseURL, cfg.YunwuAPIKey)
+	gateway := service.NewGateway(cfg, ark, dashscope, yunwu)
 	handler := httpapi.NewHandler(gateway)
 	authenticator := service.NewAuthenticator(cfg.GatewayAPIKeys, pgRepo)
 

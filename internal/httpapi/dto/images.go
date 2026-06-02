@@ -15,6 +15,8 @@ type ImageGenerationRequest struct {
 	N                         *int             `json:"n"`
 	ReferenceImages           []ReferenceImage `json:"reference_images"`
 	Image                     FlexibleStrings  `json:"image"`
+	Quality                   string           `json:"quality"`
+	Format                    string           `json:"format"`
 	SequentialImageGeneration string           `json:"sequential_image_generation"`
 	ResponseFormat            string           `json:"response_format"`
 	Stream                    *bool            `json:"stream"`
