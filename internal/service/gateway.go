@@ -269,8 +269,14 @@ func (g *Gateway) createArkVideoTask(ctx context.Context, requestID string, in C
 	}
 
 	out, err := g.ark.CreateVideoTask(ctx, requestID, providers.ArkVideoCreateRequest{
-		Model:   in.Model,
-		Content: content,
+		Model:         in.Model,
+		Content:       content,
+		GenerateAudio: arkVideoGenerateAudio(in),
+		Ratio:         arkVideoRatio(in),
+		Duration:      arkVideoDuration(in),
+		Watermark:     arkVideoWatermark(in),
+		Seed:          arkVideoSeed(in),
+		Resolution:    arkVideoResolution(in),
 	})
 	if err != nil {
 		return CreateVideoTaskResponse{}, providerError(err)

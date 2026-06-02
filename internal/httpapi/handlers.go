@@ -94,6 +94,8 @@ func (h *Handler) CreateVideoTask(c *gin.Context) {
 		AspectRatio:    in.AspectRatio,
 		Duration:       in.Duration,
 		Seed:           in.Seed,
+		GenerateAudio:  in.GenerateAudio,
+		Watermark:      in.Watermark,
 		Input:          in.Input,
 		Parameters:     in.Parameters,
 	})
@@ -149,10 +151,20 @@ func serviceVideoContent(items []dto.VideoContent) []service.VideoContent {
 		if item.ImageURL != nil {
 			imageURL = &service.MediaURL{URL: item.ImageURL.URL}
 		}
+		var videoURL *service.MediaURL
+		if item.VideoURL != nil {
+			videoURL = &service.MediaURL{URL: item.VideoURL.URL}
+		}
+		var audioURL *service.MediaURL
+		if item.AudioURL != nil {
+			audioURL = &service.MediaURL{URL: item.AudioURL.URL}
+		}
 		out = append(out, service.VideoContent{
 			Type:     item.Type,
 			Text:     item.Text,
 			ImageURL: imageURL,
+			VideoURL: videoURL,
+			AudioURL: audioURL,
 			Role:     item.Role,
 		})
 	}

@@ -62,6 +62,8 @@ type CreateVideoTaskRequest struct {
 	AspectRatio    string
 	Duration       *int
 	Seed           *int64
+	GenerateAudio  *bool
+	Watermark      *bool
 	Input          map[string]any
 	Parameters     map[string]any
 }
@@ -70,6 +72,8 @@ type VideoContent struct {
 	Type     string
 	Text     string
 	ImageURL *MediaURL
+	VideoURL *MediaURL
+	AudioURL *MediaURL
 	Role     string
 }
 

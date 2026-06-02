@@ -14,6 +14,8 @@ type CreateVideoTaskRequest struct {
 	AspectRatio    string         `json:"aspect_ratio"`
 	Duration       *int           `json:"duration"`
 	Seed           *int64         `json:"seed"`
+	GenerateAudio  *bool          `json:"generate_audio"`
+	Watermark      *bool          `json:"watermark"`
 	Input          map[string]any `json:"input"`
 	Parameters     map[string]any `json:"parameters"`
 }
@@ -22,6 +24,8 @@ type VideoContent struct {
 	Type     string    `json:"type"`
 	Text     string    `json:"text,omitempty"`
 	ImageURL *MediaURL `json:"image_url,omitempty"`
+	VideoURL *MediaURL `json:"video_url,omitempty"`
+	AudioURL *MediaURL `json:"audio_url,omitempty"`
 	Role     string    `json:"role,omitempty"`
 }
 

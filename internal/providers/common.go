@@ -1,8 +1,10 @@
 package providers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/go-resty/resty/v2"
@@ -53,4 +55,83 @@ func firstNonNilStringSlice(values ...[]string) []string {
 		}
 	}
 	return nil
+}
+
+func LogCurlOnBeforeRequest(log func(string)) resty.RequestMiddleware {
+	return func(_ *resty.Client, req *resty.Request) error {
+		if log != nil {
+			log(CurlCommand(req))
+		}
+		return nil
+	}
+}
+
+func CurlCommand(req *resty.Request) string {
+	parts := []string{"curl", shellQuote(req.URL)}
+	if req.Method != "" {
+		parts = append(parts, "-X", shellQuote(req.Method))
+	}
+	for _, header := range curlHeaders(req.Header) {
+		parts = append(parts, "-H", shellQuote(header))
+	}
+	if body := curlBody(req.Body); body != "" {
+		parts = append(parts, "-d", shellQuote(body))
+	}
+	return strings.Join(parts, " ")
+}
+
+func curlHeaders(headers http.Header) []string {
+	keys := make([]string, 0, len(headers))
+	for key := range headers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	out := make([]string, 0, len(headers))
+	for _, key := range keys {
+		for _, value := range headers.Values(key) {
+			out = append(out, key+": "+redactHeaderValue(key, value))
+		}
+	}
+	return out
+}
+
+func redactHeaderValue(key, value string) string {
+	switch strings.ToLower(strings.TrimSpace(key)) {
+	case "authorization":
+		if value == "" {
+			return value
+		}
+		if fields := strings.Fields(value); len(fields) > 0 {
+			return fields[0] + " ***"
+		}
+		return "***"
+	default:
+		return value
+	}
+}
+
+func curlBody(body any) string {
+	if body == nil {
+		return ""
+	}
+	switch typed := body.(type) {
+	case string:
+		return typed
+	case []byte:
+		return string(typed)
+	default:
+		data, err := json.Marshal(typed)
+		if err != nil {
+			return fmt.Sprint(typed)
+		}
+		return string(data)
+	}
+}
+
+func shellQuote(value string) string {
+	if value == "" {
+		return "''"
+	}
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }

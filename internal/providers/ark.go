@@ -60,18 +60,30 @@ func (c *ArkClient) GenerateImage(ctx context.Context, requestID string, req Ark
 }
 
 type ArkVideoCreateRequest struct {
-	Model   string            `json:"model"`
-	Content []ArkVideoContent `json:"content"`
+	Model         string            `json:"model"`
+	Content       []ArkVideoContent `json:"content"`
+	GenerateAudio *bool             `json:"generate_audio,omitempty"`
+	Ratio         string            `json:"ratio,omitempty"`
+	Duration      *int              `json:"duration,omitempty"`
+	Watermark     *bool             `json:"watermark,omitempty"`
+	Seed          *int64            `json:"seed,omitempty"`
+	Resolution    string            `json:"resolution,omitempty"`
 }
 
 type ArkVideoContent struct {
 	Type     string            `json:"type"`
 	Text     string            `json:"text,omitempty"`
 	ImageURL *ArkVideoImageURL `json:"image_url,omitempty"`
+	VideoURL *ArkVideoMediaURL `json:"video_url,omitempty"`
+	AudioURL *ArkVideoMediaURL `json:"audio_url,omitempty"`
 	Role     string            `json:"role,omitempty"`
 }
 
 type ArkVideoImageURL struct {
+	URL string `json:"url"`
+}
+
+type ArkVideoMediaURL struct {
 	URL string `json:"url"`
 }
 

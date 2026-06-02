@@ -50,6 +50,9 @@ func main() {
 	restyClient := resty.New().
 		SetTimeout(cfg.HTTPTimeout).
 		SetHeader("Accept", "application/json")
+	restyClient.OnBeforeRequest(providers.LogCurlOnBeforeRequest(func(command string) {
+		logger.WithField("curl", command).Info("provider request")
+	}))
 	ark := providers.NewArkClient(restyClient, cfg.ArkImageEndpoint, cfg.ArkImageAPIKey, cfg.ArkVideoEndpoint, cfg.ArkVideoAPIKey)
 	dashscope := providers.NewDashScopeClient(restyClient, cfg.DashScopeBaseURL, cfg.DashScopeAPIKey)
 	yunwu := providers.NewYunwuClient(restyClient, cfg.YunwuBaseURL, cfg.YunwuAPIKey)

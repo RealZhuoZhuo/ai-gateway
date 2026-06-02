@@ -82,7 +82,7 @@ func imagePrompt(in ImageGenerationRequest) string {
 }
 
 func videoPrompt(in CreateVideoTaskRequest) string {
-	return firstString(in.Prompt, videoContentText(in.Content), nestedString(in.Input, "prompt"), messagesText(in.Input))
+	return firstString(in.Prompt, videoContentText(in.Content), rawVideoContentText(in.Input), nestedString(in.Input, "prompt"), messagesText(in.Input))
 }
 
 func imageReferences(in ImageGenerationRequest) ([]string, error) {
@@ -233,6 +233,9 @@ func imageN(in ImageGenerationRequest, fallback int) int {
 }
 
 func arkVideoContent(in CreateVideoTaskRequest, prompt string) ([]providers.ArkVideoContent, error) {
+	if rawContent, ok := in.Input["content"].([]any); ok {
+		return arkVideoContentFromRaw(rawContent)
+	}
 	if len(in.Content) > 0 {
 		return arkVideoContentFromInput(in.Content)
 	}
@@ -243,6 +246,36 @@ func arkVideoContent(in CreateVideoTaskRequest, prompt string) ([]providers.ArkV
 			Type:     "image_url",
 			ImageURL: &providers.ArkVideoImageURL{URL: firstFrameURL},
 		})
+	}
+	return content, nil
+}
+
+func arkVideoContentFromRaw(rawContent []any) ([]providers.ArkVideoContent, error) {
+	content := make([]providers.ArkVideoContent, 0, len(rawContent))
+	for _, rawItem := range rawContent {
+		item, ok := rawItem.(map[string]any)
+		if !ok {
+			continue
+		}
+		itemType := nestedString(item, "type")
+		if itemType == "" {
+			return nil, invalidRequest("input.content.type is required")
+		}
+		out := providers.ArkVideoContent{
+			Type: itemType,
+			Text: nestedString(item, "text"),
+			Role: nestedString(item, "role"),
+		}
+		if url := nestedMediaURL(item, "image_url"); url != "" {
+			out.ImageURL = &providers.ArkVideoImageURL{URL: url}
+		}
+		if url := nestedMediaURL(item, "video_url"); url != "" {
+			out.VideoURL = &providers.ArkVideoMediaURL{URL: url}
+		}
+		if url := nestedMediaURL(item, "audio_url"); url != "" {
+			out.AudioURL = &providers.ArkVideoMediaURL{URL: url}
+		}
+		content = append(content, out)
 	}
 	return content, nil
 }
@@ -265,6 +298,18 @@ func arkVideoContentFromInput(items []VideoContent) ([]providers.ArkVideoContent
 			}
 			out.ImageURL = &providers.ArkVideoImageURL{URL: strings.TrimSpace(item.ImageURL.URL)}
 		}
+		if item.VideoURL != nil {
+			if strings.TrimSpace(item.VideoURL.URL) == "" {
+				return nil, invalidRequest("content.video_url.url is required")
+			}
+			out.VideoURL = &providers.ArkVideoMediaURL{URL: strings.TrimSpace(item.VideoURL.URL)}
+		}
+		if item.AudioURL != nil {
+			if strings.TrimSpace(item.AudioURL.URL) == "" {
+				return nil, invalidRequest("content.audio_url.url is required")
+			}
+			out.AudioURL = &providers.ArkVideoMediaURL{URL: strings.TrimSpace(item.AudioURL.URL)}
+		}
 		content = append(content, out)
 	}
 	return content, nil
@@ -277,6 +322,71 @@ func videoContentText(items []VideoContent) string {
 		}
 	}
 	return ""
+}
+
+func rawVideoContentText(input map[string]any) string {
+	rawContent, ok := input["content"].([]any)
+	if !ok {
+		return ""
+	}
+	for _, rawItem := range rawContent {
+		item, ok := rawItem.(map[string]any)
+		if !ok {
+			continue
+		}
+		if nestedString(item, "type") == "text" {
+			return nestedString(item, "text")
+		}
+	}
+	return ""
+}
+
+func arkVideoGenerateAudio(in CreateVideoTaskRequest) *bool {
+	if in.GenerateAudio != nil {
+		return in.GenerateAudio
+	}
+	if value, ok := nestedBool(in.Parameters, "generate_audio"); ok {
+		return &value
+	}
+	return nil
+}
+
+func arkVideoWatermark(in CreateVideoTaskRequest) *bool {
+	if in.Watermark != nil {
+		return in.Watermark
+	}
+	if value, ok := nestedBool(in.Parameters, "watermark"); ok {
+		return &value
+	}
+	return nil
+}
+
+func arkVideoDuration(in CreateVideoTaskRequest) *int {
+	if in.Duration != nil {
+		return in.Duration
+	}
+	if value, ok := nestedInt(in.Parameters, "duration"); ok {
+		return &value
+	}
+	return nil
+}
+
+func arkVideoSeed(in CreateVideoTaskRequest) *int64 {
+	if in.Seed != nil {
+		return in.Seed
+	}
+	if value, ok := nestedInt64(in.Parameters, "seed"); ok {
+		return &value
+	}
+	return nil
+}
+
+func arkVideoRatio(in CreateVideoTaskRequest) string {
+	return firstString(in.Ratio, in.AspectRatio, nestedString(in.Parameters, "ratio"), nestedString(in.Parameters, "aspect_ratio"))
+}
+
+func arkVideoResolution(in CreateVideoTaskRequest) string {
+	return firstString(in.Resolution, nestedString(in.Parameters, "resolution"))
 }
 
 func dashScopeVideoMode(in CreateVideoTaskRequest, media []providers.DashScopeVideoMedia) string {
@@ -468,6 +578,23 @@ func nestedString(values map[string]any, keys ...string) string {
 	return ""
 }
 
+func nestedMediaURL(values map[string]any, key string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	raw, ok := values[key]
+	if !ok {
+		return ""
+	}
+	switch typed := raw.(type) {
+	case string:
+		return strings.TrimSpace(typed)
+	case map[string]any:
+		return nestedString(typed, "url")
+	}
+	return ""
+}
+
 func nestedValue(values map[string]any, keys ...string) (any, bool) {
 	if len(values) == 0 {
 		return nil, false
@@ -505,6 +632,41 @@ func nestedBool(values map[string]any, keys ...string) (bool, bool) {
 		}
 	}
 	return false, false
+}
+
+func nestedInt(values map[string]any, keys ...string) (int, bool) {
+	if value, ok := nestedInt64(values, keys...); ok {
+		return int(value), true
+	}
+	return 0, false
+}
+
+func nestedInt64(values map[string]any, keys ...string) (int64, bool) {
+	if len(values) == 0 {
+		return 0, false
+	}
+	for _, key := range keys {
+		value, ok := values[key]
+		if !ok {
+			continue
+		}
+		switch typed := value.(type) {
+		case int:
+			return int64(typed), true
+		case int64:
+			return typed, true
+		case float64:
+			if typed == float64(int64(typed)) {
+				return int64(typed), true
+			}
+		case string:
+			parsed, err := strconv.ParseInt(strings.TrimSpace(typed), 10, 64)
+			if err == nil {
+				return parsed, true
+			}
+		}
+	}
+	return 0, false
 }
 
 func messagesText(input map[string]any) string {

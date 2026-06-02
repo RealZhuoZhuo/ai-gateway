@@ -65,6 +65,8 @@ image_model_providers:
 video_model_providers:
   - model: "doubao-seedance-1-5-pro-251215"
     provider: "ark"
+  - model: "ep-20260601143626-tm6ts"
+    provider: "ark"
   - model: "wan2.7-t2v-2026-04-25"
     provider: "dashscope"
   - model: "wan2.7-i2v-2026-04-25"
@@ -83,7 +85,7 @@ For Yunwu image generation, Gemini image models such as `gemini-3.1-flash-image-
 
 For DashScope `wan2.7-r2v`, pass reference assets in `media`, for example `{"type":"reference_image","url":"https://...","reference_voice":"https://..."}` or `{"type":"reference_video","url":"https://..."}`. The gateway forwards them as `input.prompt` plus `input.media` to `POST /services/aigc/video-generation/video-synthesis`.
 
-For Ark video generation, the gateway submits tasks to `POST /api/v3/contents/generations/tasks` and queries `GET /api/v3/contents/generations/tasks/{id}`. Ark statuses `queued` and `running` are intermediate polling states; `succeeded`, `failed`, `cancelled`, and `expired` are terminal states. On `succeeded`, the gateway returns Ark's `content.video_url` as `video_url`.
+For Ark video generation, the gateway submits tasks to `POST /api/v3/contents/generations/tasks` and queries `GET /api/v3/contents/generations/tasks/{id}`. Ark content supports `text`, `image_url`, `video_url`, and `audio_url` items with roles such as `reference_image`, `reference_video`, and `reference_audio`; top-level `generate_audio`, `ratio`, `duration`, `watermark`, `seed`, and `resolution` are forwarded when present. Add Seedance 2.0 or Seedance 2.0 Fast model IDs to `video_model_providers` with `provider: "ark"`. Ark statuses `queued` and `running` are intermediate polling states; `succeeded`, `failed`, `cancelled`, and `expired` are terminal states. On `succeeded`, the gateway returns Ark's `content.video_url` as `video_url`.
 
 Postgres API keys are stored as SHA-256 hashes in `gateway_api_keys.key_hash`.
 
