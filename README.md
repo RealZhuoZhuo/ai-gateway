@@ -59,7 +59,7 @@ image_model_providers:
     provider: "yunwu"
   - model: "gemini-3-pro-image-preview"
     provider: "yunwu"
-  - model: "gpt-image-2"
+  - model: "gpt-image-2-all"
     provider: "yunwu"
 
 video_model_providers:
@@ -81,7 +81,7 @@ Video task IDs returned by the gateway include a provider prefix such as `dashsc
 
 For DashScope image generation, the gateway sends BaiLian Wan 2.7 requests as `input.messages[].content[]` with `{"text": ...}` followed by zero or more `{"image": ...}` reference images. Set `"async": true` on `POST /v1/images/generations` to create an async image task through `POST /services/aigc/image-generation/generation`; otherwise the gateway uses synchronous `POST /services/aigc/multimodal-generation/generation`. DashScope image defaults include `n: 1` and `watermark: false` unless overridden.
 
-For Yunwu image generation, Gemini image models such as `gemini-3.1-flash-image-preview` and `gemini-3-pro-image-preview` are sent to `POST /v1beta/models/{model}:generateContent` with `response_modalities: ["IMAGE", "TEXT"]`. `gpt-image-2` is sent to `POST /v1/images/generations` with `model`, `prompt`, `n`, `size`, `quality`, and `format`. Inline base64 images from Yunwu are returned as `data:image/...;base64,...` values in the existing `url` and `urls` fields.
+For Yunwu image generation, Gemini image models such as `gemini-3.1-flash-image-preview` and `gemini-3-pro-image-preview` are sent to `POST /v1beta/models/{model}:generateContent` with `response_modalities: ["IMAGE", "TEXT"]`. `gpt-image-2-all` is sent to `POST /v1/images/generations` with `model`, `prompt`, `n`, `size`, `image`, and `response_format`. Inline base64 images from Yunwu are returned as `data:image/...;base64,...` values in the existing `url` and `urls` fields.
 
 For DashScope `wan2.7-r2v`, pass reference assets in `media`, for example `{"type":"reference_image","url":"https://...","reference_voice":"https://..."}` or `{"type":"reference_video","url":"https://..."}`. The gateway forwards them as `input.prompt` plus `input.media` to `POST /services/aigc/video-generation/video-synthesis`.
 

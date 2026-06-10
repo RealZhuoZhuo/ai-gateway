@@ -66,12 +66,12 @@ type YunwuGeminiCandidate struct {
 }
 
 type YunwuImageRequest struct {
-	Model   string `json:"model"`
-	Prompt  string `json:"prompt"`
-	N       *int   `json:"n,omitempty"`
-	Size    string `json:"size,omitempty"`
-	Quality string `json:"quality,omitempty"`
-	Format  string `json:"format,omitempty"`
+	Model          string   `json:"model"`
+	Prompt         string   `json:"prompt"`
+	N              *int     `json:"n,omitempty"`
+	Size           string   `json:"size,omitempty"`
+	Image          []string `json:"image,omitempty"`
+	ResponseFormat string   `json:"response_format,omitempty"`
 }
 
 type YunwuImageResponse struct {

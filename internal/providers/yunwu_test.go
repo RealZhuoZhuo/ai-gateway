@@ -96,12 +96,12 @@ func TestYunwuGenerateImage(t *testing.T) {
 	n := 2
 	client := NewYunwuClient(resty.New(), server.URL, "sk-test")
 	out, err := client.GenerateImage(context.Background(), "rid-2", YunwuImageRequest{
-		Model:   "gpt-image-2",
-		Prompt:  "city",
-		N:       &n,
-		Size:    "1024x1024",
-		Quality: "low",
-		Format:  "jpeg",
+		Model:          "gpt-image-2-all",
+		Prompt:         "merge them",
+		N:              &n,
+		Size:           "1024x1024",
+		Image:          []string{"https://cdn.example/a.png", "https://cdn.example/b.jpg"},
+		ResponseFormat: "url",
 	})
 	if err != nil {
 		t.Fatalf("GenerateImage returned error: %v", err)
@@ -109,7 +109,10 @@ func TestYunwuGenerateImage(t *testing.T) {
 	if gotPath != "/v1/images/generations" {
 		t.Fatalf("path = %q", gotPath)
 	}
-	if gotBody.Model != "gpt-image-2" || gotBody.Prompt != "city" || gotBody.N == nil || *gotBody.N != 2 || gotBody.Size != "1024x1024" || gotBody.Quality != "low" || gotBody.Format != "jpeg" {
+	if gotBody.Model != "gpt-image-2-all" || gotBody.Prompt != "merge them" || gotBody.N == nil || *gotBody.N != 2 || gotBody.Size != "1024x1024" || gotBody.ResponseFormat != "url" {
+		t.Fatalf("request body = %#v", gotBody)
+	}
+	if len(gotBody.Image) != 2 || gotBody.Image[0] != "https://cdn.example/a.png" || gotBody.Image[1] != "https://cdn.example/b.jpg" {
 		t.Fatalf("request body = %#v", gotBody)
 	}
 	if out.Created != 123 || len(out.Data) != 2 || out.Data[0].URL != "https://cdn.example/image.jpg" || out.Data[1].B64JSON != "xyz" {
@@ -119,7 +122,7 @@ func TestYunwuGenerateImage(t *testing.T) {
 
 func TestYunwuNotConfigured(t *testing.T) {
 	client := NewYunwuClient(resty.New(), "https://yunwu.ai", "")
-	_, err := client.GenerateImage(context.Background(), "rid-3", YunwuImageRequest{Model: "gpt-image-2", Prompt: "city"})
+	_, err := client.GenerateImage(context.Background(), "rid-3", YunwuImageRequest{Model: "gpt-image-2-all", Prompt: "city"})
 	var providerErr ProviderError
 	if !errors.As(err, &providerErr) {
 		t.Fatalf("error = %T %v", err, err)

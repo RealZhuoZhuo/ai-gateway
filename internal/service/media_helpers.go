@@ -546,6 +546,10 @@ func imageFormat(in ImageGenerationRequest) string {
 	return firstString(in.Format, nestedString(in.Parameters, "format"))
 }
 
+func imageResponseFormat(in ImageGenerationRequest) string {
+	return firstString(in.ResponseFormat, nestedString(in.Parameters, "response_format"))
+}
+
 func firstString(values ...string) string {
 	return common.FirstNonEmpty(values...)
 }

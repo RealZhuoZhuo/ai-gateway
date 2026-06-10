@@ -182,13 +182,17 @@ func (g *Gateway) generateYunwuImage(ctx context.Context, requestID string, in I
 		}, nil
 	}
 
+	images, err := imageReferences(in)
+	if err != nil {
+		return ImageGenerationResponse{}, err
+	}
 	out, err := g.yunwu.GenerateImage(ctx, requestID, providers.YunwuImageRequest{
-		Model:   in.Model,
-		Prompt:  prompt,
-		N:       in.N,
-		Size:    imageResolution(in),
-		Quality: imageQuality(in),
-		Format:  imageFormat(in),
+		Model:          in.Model,
+		Prompt:         prompt,
+		N:              in.N,
+		Size:           imageResolution(in),
+		Image:          images,
+		ResponseFormat: imageResponseFormat(in),
 	})
 	if err != nil {
 		return ImageGenerationResponse{}, providerError(err)
