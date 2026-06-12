@@ -38,7 +38,6 @@ Edit `config.yaml` or override values with environment variables.
 
 ```yaml
 addr: ":8080"
-database_url: "postgres://user:password@localhost:5433/ai_gateway"
 gateway_api_key: "local-dev-key"
 gateway_api_keys: []
 dashscope_base_url: "https://dashscope.aliyuncs.com/api/v1"
@@ -87,6 +86,4 @@ For DashScope `wan2.7-r2v`, pass reference assets in `media`, for example `{"typ
 
 For Ark video generation, the gateway submits tasks to `POST /api/v3/contents/generations/tasks` and queries `GET /api/v3/contents/generations/tasks/{id}`. Ark content supports `text`, `image_url`, `video_url`, and `audio_url` items with roles such as `reference_image`, `reference_video`, and `reference_audio`; top-level `generate_audio`, `ratio`, `duration`, `watermark`, `seed`, and `resolution` are forwarded when present. Add Seedance 2.0 or Seedance 2.0 Fast model IDs to `video_model_providers` with `provider: "ark"`. Ark statuses `queued` and `running` are intermediate polling states; `succeeded`, `failed`, `cancelled`, and `expired` are terminal states. On `succeeded`, the gateway returns Ark's `content.video_url` as `video_url`.
 
-Postgres API keys are stored as SHA-256 hashes in `gateway_api_keys.key_hash`.
-
-Database tables are migrated on startup with GORM `AutoMigrate`.
+API keys are loaded from `gateway_api_key` and `gateway_api_keys` in configuration.

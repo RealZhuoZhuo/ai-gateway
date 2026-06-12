@@ -15,7 +15,6 @@ import (
 	"github.com/RealZhuoZhuo/ai-gateway/internal/config"
 	"github.com/RealZhuoZhuo/ai-gateway/internal/httpapi"
 	"github.com/RealZhuoZhuo/ai-gateway/internal/providers"
-	"github.com/RealZhuoZhuo/ai-gateway/internal/repo"
 	"github.com/RealZhuoZhuo/ai-gateway/internal/service"
 )
 
@@ -35,18 +34,6 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	pgRepo, err := repo.NewPostgres(ctx, cfg.DatabaseURL)
-	if err != nil {
-		if errors.Is(err, repo.ErrNotConfigured) {
-			logger.Warn("database_url not configured; only config api keys will be used")
-		} else {
-			logger.WithError(err).Fatal("postgres initialization failed")
-		}
-	}
-	if pgRepo != nil {
-		defer pgRepo.Close()
-	}
-
 	restyClient := resty.New().
 		SetTimeout(cfg.HTTPTimeout).
 		SetHeader("Accept", "application/json")
@@ -58,7 +45,7 @@ func main() {
 	yunwu := providers.NewYunwuClient(restyClient, cfg.YunwuBaseURL, cfg.YunwuAPIKey)
 	gateway := service.NewGateway(cfg, ark, dashscope, yunwu)
 	handler := httpapi.NewHandler(gateway)
-	authenticator := service.NewAuthenticator(cfg.GatewayAPIKeys, pgRepo)
+	authenticator := service.NewAuthenticator(cfg.GatewayAPIKeys)
 
 	server := &http.Server{
 		Addr:              cfg.Addr,

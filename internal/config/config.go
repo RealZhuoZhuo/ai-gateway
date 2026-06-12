@@ -14,7 +14,6 @@ import (
 type Config struct {
 	Addr string `mapstructure:"addr"`
 
-	DatabaseURL         string          `mapstructure:"database_url"`
 	GatewayAPIKeys      []string        `mapstructure:"gateway_api_keys"`
 	ImageModelProviders []ModelProvider `mapstructure:"image_model_providers"`
 	VideoModelProviders []ModelProvider `mapstructure:"video_model_providers"`
@@ -60,7 +59,6 @@ func Load() (Config, error) {
 
 	cfg := Config{
 		Addr:               v.GetString("addr"),
-		DatabaseURL:        v.GetString("database_url"),
 		GatewayAPIKeys:     compactStrings(v.GetStringSlice("gateway_api_keys")),
 		ArkImageEndpoint:   v.GetString("ark_image_endpoint"),
 		ArkImageAPIKey:     v.GetString("ark_image_api_key"),
