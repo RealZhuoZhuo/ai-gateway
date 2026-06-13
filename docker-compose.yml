@@ -8,3 +8,8 @@ services:
       - "8080:8080"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
+    networks:
+      - framemind_shared
+networks:
+  framemind_shared:
+    external: true
