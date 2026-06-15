@@ -31,10 +31,10 @@ func NewRouter(handler *Handler, authenticator *service.Authenticator, logger *l
 	}
 
 	r.NoRoute(func(c *gin.Context) {
-		WriteError(c, dto.NewAPIError(http.StatusNotFound, "not_found", "route not found"))
+		WriteError(c, dto.NewAPIError(http.StatusNotFound, "not_found", "路由不存在"))
 	})
 	r.NoMethod(func(c *gin.Context) {
-		WriteError(c, dto.NewAPIError(http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed"))
+		WriteError(c, dto.NewAPIError(http.StatusMethodNotAllowed, "method_not_allowed", "请求方法不允许"))
 	})
 
 	return r

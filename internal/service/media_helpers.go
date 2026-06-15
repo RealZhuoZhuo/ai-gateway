@@ -98,7 +98,7 @@ func imageReferences(in ImageGenerationRequest) ([]string, error) {
 	add(in.Image)
 	for _, item := range in.ReferenceImages {
 		if strings.TrimSpace(item.URL) == "" {
-			return nil, invalidRequest("reference_images.url is required")
+			return nil, invalidRequest("reference_images.url为必填项")
 		}
 		add(item.URL)
 	}
@@ -259,7 +259,7 @@ func arkVideoContentFromRaw(rawContent []any) ([]providers.ArkVideoContent, erro
 		}
 		itemType := nestedString(item, "type")
 		if itemType == "" {
-			return nil, invalidRequest("input.content.type is required")
+			return nil, invalidRequest("input.content.type为必填项")
 		}
 		out := providers.ArkVideoContent{
 			Type: itemType,
@@ -285,7 +285,7 @@ func arkVideoContentFromInput(items []VideoContent) ([]providers.ArkVideoContent
 	for _, item := range items {
 		itemType := strings.TrimSpace(item.Type)
 		if itemType == "" {
-			return nil, invalidRequest("content.type is required")
+			return nil, invalidRequest("content.type为必填项")
 		}
 		out := providers.ArkVideoContent{
 			Type: itemType,
@@ -294,19 +294,19 @@ func arkVideoContentFromInput(items []VideoContent) ([]providers.ArkVideoContent
 		}
 		if item.ImageURL != nil {
 			if strings.TrimSpace(item.ImageURL.URL) == "" {
-				return nil, invalidRequest("content.image_url.url is required")
+				return nil, invalidRequest("content.image_url.url为必填项")
 			}
 			out.ImageURL = &providers.ArkVideoImageURL{URL: strings.TrimSpace(item.ImageURL.URL)}
 		}
 		if item.VideoURL != nil {
 			if strings.TrimSpace(item.VideoURL.URL) == "" {
-				return nil, invalidRequest("content.video_url.url is required")
+				return nil, invalidRequest("content.video_url.url为必填项")
 			}
 			out.VideoURL = &providers.ArkVideoMediaURL{URL: strings.TrimSpace(item.VideoURL.URL)}
 		}
 		if item.AudioURL != nil {
 			if strings.TrimSpace(item.AudioURL.URL) == "" {
-				return nil, invalidRequest("content.audio_url.url is required")
+				return nil, invalidRequest("content.audio_url.url为必填项")
 			}
 			out.AudioURL = &providers.ArkVideoMediaURL{URL: strings.TrimSpace(item.AudioURL.URL)}
 		}
@@ -464,7 +464,7 @@ func dashScopeVideoMediaFromRaw(rawMedia []any) ([]providers.DashScopeVideoMedia
 			out.Type = dashScopeMediaType(out.URL)
 		}
 		if out.URL == "" {
-			return nil, invalidRequest("input.media.url is required")
+			return nil, invalidRequest("input.media.url为必填项")
 		}
 		media = append(media, out)
 	}
@@ -483,7 +483,7 @@ func dashScopeVideoMediaFromRequest(items []VideoMedia) ([]providers.DashScopeVi
 			out.Type = dashScopeMediaType(out.URL)
 		}
 		if out.URL == "" {
-			return nil, invalidRequest("media.url is required")
+			return nil, invalidRequest("media.url为必填项")
 		}
 		media = append(media, out)
 	}

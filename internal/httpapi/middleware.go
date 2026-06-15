@@ -51,7 +51,7 @@ func Recoverer(logger *logrus.Logger) gin.HandlerFunc {
 					"panic":      recovered,
 					"request_id": RequestIDFromContext(c),
 				}).Error("panic recovered")
-				WriteError(c, dto.NewAPIError(http.StatusInternalServerError, "internal_error", "internal server error"))
+				WriteError(c, dto.NewAPIError(http.StatusInternalServerError, "internal_error", "内部服务器错误"))
 				c.Abort()
 			}
 		}()
@@ -64,7 +64,7 @@ func Auth(authenticator *service.Authenticator, logger *logrus.Logger) gin.Handl
 		header := strings.TrimSpace(c.GetHeader("Authorization"))
 		token, ok := strings.CutPrefix(header, "Bearer ")
 		if !ok || strings.TrimSpace(token) == "" {
-			WriteError(c, dto.NewAPIError(http.StatusUnauthorized, "unauthorized", "missing bearer token"))
+			WriteError(c, dto.NewAPIError(http.StatusUnauthorized, "unauthorized", "缺少Bearer Token"))
 			c.Abort()
 			return
 		}
@@ -72,12 +72,12 @@ func Auth(authenticator *service.Authenticator, logger *logrus.Logger) gin.Handl
 		allowed, err := authenticator.ValidAPIKey(c.Request.Context(), strings.TrimSpace(token))
 		if err != nil {
 			logger.WithError(err).WithField("request_id", RequestIDFromContext(c)).Error("api key validation failed")
-			WriteError(c, dto.NewAPIError(http.StatusInternalServerError, "auth_error", "api key validation failed"))
+			WriteError(c, dto.NewAPIError(http.StatusInternalServerError, "auth_error", "API密钥验证失败"))
 			c.Abort()
 			return
 		}
 		if !allowed {
-			WriteError(c, dto.NewAPIError(http.StatusUnauthorized, "unauthorized", "invalid api key"))
+			WriteError(c, dto.NewAPIError(http.StatusUnauthorized, "unauthorized", "无效的API密钥"))
 			c.Abort()
 			return
 		}
@@ -96,7 +96,7 @@ func RequestIDFromContext(c *gin.Context) string {
 
 func DecodeJSON(c *gin.Context, dst any) bool {
 	if err := c.ShouldBindJSON(dst); err != nil {
-		WriteError(c, dto.NewAPIError(http.StatusBadRequest, "invalid_request", "invalid json body"))
+		WriteError(c, dto.NewAPIError(http.StatusBadRequest, "invalid_request", "无效的JSON请求体"))
 		return false
 	}
 	return true

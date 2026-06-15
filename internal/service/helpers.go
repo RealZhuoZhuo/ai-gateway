@@ -13,7 +13,7 @@ func requireString(value, field string) error {
 	if strings.TrimSpace(value) != "" {
 		return nil
 	}
-	return invalidRequest(field + " is required")
+	return invalidRequest(field + "为必填项")
 }
 
 func nullableString(value string) *string {

@@ -16,5 +16,5 @@ func writeServiceError(c *gin.Context, err error) {
 		WriteError(c, dto.NewAPIError(serviceErr.Status, serviceErr.Code, serviceErr.Message))
 		return
 	}
-	WriteError(c, dto.NewAPIError(http.StatusInternalServerError, "internal_error", "internal server error"))
+	WriteError(c, dto.NewAPIError(http.StatusInternalServerError, "internal_error", "内部服务器错误"))
 }

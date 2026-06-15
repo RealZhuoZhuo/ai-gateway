@@ -51,7 +51,7 @@ func (g *Gateway) GenerateImage(ctx context.Context, requestID string, in ImageG
 	case "yunwu":
 		return g.generateYunwuImage(ctx, requestID, in, prompt)
 	default:
-		return ImageGenerationResponse{}, invalidRequest("model is not configured")
+		return ImageGenerationResponse{}, invalidRequest("模型未配置")
 	}
 }
 
@@ -78,7 +78,7 @@ func (g *Gateway) generateArkImage(ctx context.Context, requestID string, in Ima
 
 	urls := arkImageURLs(out)
 	if len(urls) == 0 {
-		return ImageGenerationResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "ark image response did not include url")
+		return ImageGenerationResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "Ark图片响应未包含URL")
 	}
 
 	return ImageGenerationResponse{
@@ -112,7 +112,7 @@ func (g *Gateway) generateDashScopeImage(ctx context.Context, requestID string, 
 		}
 		rawTaskID := out.Output.TaskID
 		if rawTaskID == "" {
-			return ImageGenerationResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "dashscope image response did not include task id")
+			return ImageGenerationResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "DashScope图片响应未包含任务ID")
 		}
 		status := normalizeDashScopeStatus(common.FirstNonEmpty(out.Output.TaskStatus, out.Output.Status))
 		return ImageGenerationResponse{
@@ -131,7 +131,7 @@ func (g *Gateway) generateDashScopeImage(ctx context.Context, requestID string, 
 	}
 	urls := dashScopeImageURLs(out)
 	if len(urls) == 0 {
-		return ImageGenerationResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "dashscope image response did not include url")
+		return ImageGenerationResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "DashScope图片响应未包含URL")
 	}
 	return ImageGenerationResponse{
 		URL:      urls[0],
@@ -146,7 +146,7 @@ func (g *Gateway) generateDashScopeImage(ctx context.Context, requestID string, 
 
 func (g *Gateway) generateYunwuImage(ctx context.Context, requestID string, in ImageGenerationRequest, prompt string) (ImageGenerationResponse, error) {
 	if in.Async != nil && *in.Async {
-		return ImageGenerationResponse{}, invalidRequest("yunwu image generation does not support async")
+		return ImageGenerationResponse{}, invalidRequest("云雾图片生成不支持异步模式")
 	}
 
 	if yunwuGeminiModel(in.Model) {
@@ -169,7 +169,7 @@ func (g *Gateway) generateYunwuImage(ctx context.Context, requestID string, in I
 
 		urls := yunwuGeminiImageURLs(out)
 		if len(urls) == 0 {
-			return ImageGenerationResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "yunwu image response did not include image")
+			return ImageGenerationResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "云雾图片响应未包含图片")
 		}
 		return ImageGenerationResponse{
 			URL:      urls[0],
@@ -200,7 +200,7 @@ func (g *Gateway) generateYunwuImage(ctx context.Context, requestID string, in I
 
 	urls := yunwuImageURLs(out, imageFormat(in))
 	if len(urls) == 0 {
-		return ImageGenerationResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "yunwu image response did not include image")
+		return ImageGenerationResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "云雾图片响应未包含图片")
 	}
 	return ImageGenerationResponse{
 		URL:      urls[0],
@@ -215,11 +215,11 @@ func (g *Gateway) generateYunwuImage(ctx context.Context, requestID string, in I
 
 func (g *Gateway) GetImageTask(ctx context.Context, requestID, taskID string) (GetImageTaskResponse, error) {
 	if strings.TrimSpace(taskID) == "" {
-		return GetImageTaskResponse{}, invalidRequest("task_id is required")
+		return GetImageTaskResponse{}, invalidRequest("task_id为必填项")
 	}
 	prefix, rawTaskID, ok := decodeTaskID(taskID)
 	if !ok {
-		return GetImageTaskResponse{}, invalidRequest("image task_id must include a provider prefix")
+		return GetImageTaskResponse{}, invalidRequest("图片task_id必须包含提供商前缀")
 	}
 	switch prefix {
 	case taskPrefixDashImage:
@@ -243,7 +243,7 @@ func (g *Gateway) GetImageTask(ctx context.Context, requestID, taskID string) (G
 			Metadata: metadata,
 		}, nil
 	default:
-		return GetImageTaskResponse{}, invalidRequest("unknown image task_id prefix")
+		return GetImageTaskResponse{}, invalidRequest("未知的图片task_id前缀")
 	}
 }
 
@@ -262,7 +262,7 @@ func (g *Gateway) CreateVideoTask(ctx context.Context, requestID string, in Crea
 	case "ark":
 		return g.createArkVideoTask(ctx, requestID, in, prompt)
 	default:
-		return CreateVideoTaskResponse{}, invalidRequest("model is not configured")
+		return CreateVideoTaskResponse{}, invalidRequest("模型未配置")
 	}
 }
 
@@ -288,7 +288,7 @@ func (g *Gateway) createArkVideoTask(ctx context.Context, requestID string, in C
 
 	taskID := common.FirstNonEmpty(out.TaskID, out.ID)
 	if taskID == "" {
-		return CreateVideoTaskResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "ark video response did not include task id")
+		return CreateVideoTaskResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "Ark视频响应未包含任务ID")
 	}
 	status := normalizeTaskStatus(out.Status)
 	if status == "unknown" {
@@ -312,10 +312,13 @@ func (g *Gateway) createDashScopeVideoTask(ctx context.Context, requestID string
 	switch dashScopeVideoMode(in, input.Media) {
 	case videoModeImageToVideo:
 		if len(input.Media) == 0 {
-			return CreateVideoTaskResponse{}, invalidRequest("image is required for image-to-video model")
+			return CreateVideoTaskResponse{}, invalidRequest("图生视频模型需要提供参考图片")
 		}
 		prefix = taskPrefixDashImageVideo
 	case videoModeReferenceToVideo:
+		if len(input.Media) == 0 {
+			return CreateVideoTaskResponse{}, invalidRequest("参考视频生成模型需要提供参考素材（input.media）")
+		}
 		prefix = taskPrefixDashRefVideo
 	}
 
@@ -329,7 +332,7 @@ func (g *Gateway) createDashScopeVideoTask(ctx context.Context, requestID string
 	}
 	rawTaskID := out.Output.TaskID
 	if rawTaskID == "" {
-		return CreateVideoTaskResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "dashscope video response did not include task id")
+		return CreateVideoTaskResponse{}, newError(http.StatusBadGateway, "provider_bad_response", "DashScope视频响应未包含任务ID")
 	}
 	status := normalizeDashScopeStatus(common.FirstNonEmpty(out.Output.TaskStatus, out.Output.Status))
 	return CreateVideoTaskResponse{
@@ -342,7 +345,7 @@ func (g *Gateway) createDashScopeVideoTask(ctx context.Context, requestID string
 
 func (g *Gateway) GetVideoTask(ctx context.Context, requestID, taskID string) (GetVideoTaskResponse, error) {
 	if strings.TrimSpace(taskID) == "" {
-		return GetVideoTaskResponse{}, invalidRequest("task_id is required")
+		return GetVideoTaskResponse{}, invalidRequest("task_id为必填项")
 	}
 	prefix, rawTaskID, ok := decodeTaskID(taskID)
 	if !ok {
@@ -355,7 +358,7 @@ func (g *Gateway) GetVideoTask(ctx context.Context, requestID, taskID string) (G
 	case taskPrefixDashTextVideo, taskPrefixDashImageVideo, taskPrefixDashRefVideo:
 		return g.getDashScopeVideoTask(ctx, requestID, rawTaskID, taskID, prefix)
 	default:
-		return GetVideoTaskResponse{}, invalidRequest("unknown task_id prefix")
+		return GetVideoTaskResponse{}, invalidRequest("未知的task_id前缀")
 	}
 }
 
